@@ -1,0 +1,21 @@
+{
+    "name": "Edu Project",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "remoteUser": "vscode",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "golang.go",
+                "dbaeumer.vscode-eslint",
+                "esbenp.prettier-vscode",
+                "ms-azuretools.vscode-docker",
+                "eamodio.gitlens",
+                "GitHub.copilot",
+                "humao.rest-client",
+                "ms-vscode-remote.remote-containers"
+            ]
+        }
+    }
+}
