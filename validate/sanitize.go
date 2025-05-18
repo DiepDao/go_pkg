@@ -3,7 +3,6 @@ package validate
 import (
 	"encoding/json"
 	"errors"
-	"log"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -11,12 +10,12 @@ import (
 func ValidateStruct(req interface{}) error {
 	check := validator.New()
 	if err := check.Struct(req); err != nil {
-		return err
+		return parseError(err)
 	}
 	return nil
 }
 
-func JSON(err error) error {
+func parseError(err error) error {
 	var validationErrs validator.ValidationErrors
 	if errors.As(err, &validationErrs) {
 		missingFields := make(map[string]string)
@@ -32,8 +31,4 @@ func JSON(err error) error {
 	}
 
 	return err
-}
-
-func Test() {
-	log.Println("test")
 }
