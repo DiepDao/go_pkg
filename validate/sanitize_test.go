@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/DiepDao/pkg/validate/validate"
+	"github.com/DiepDao/pkg/validate"
 )
 
 // Define a nested struct with validation tags
