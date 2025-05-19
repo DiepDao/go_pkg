@@ -1,4 +1,4 @@
-module github.com/DiepDao/pkg
+module github.com/DiepDao/go_pkg
 
 go 1.23.9
 
