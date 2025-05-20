@@ -1,5 +1,5 @@
 {
-    "name": "Edu Project",
+    "name": "pkg library",
     "build": {
         "dockerfile": "Dockerfile"
     },
