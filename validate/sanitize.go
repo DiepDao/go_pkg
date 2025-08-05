@@ -65,9 +65,9 @@ func parseError(err error) error {
 	if errors.As(err, &validationErrs) {
 		var errorMessages []string
 		for _, fieldErr := range validationErrs {
-			errorMessages = append(errorMessages, fieldErr.Field()+" is required")
+			errorMessages = append(errorMessages, strings.ToLower(fieldErr.Field()+" is required"))
 		}
-		return errors.New("validation failed: " + strings.ToLower(strings.Join(errorMessages, ", ")))
+		return errors.New("validation failed: " + strings.Join(errorMessages, ", "))
 	}
 
 	var unmarshalTypeError *json.UnmarshalTypeError
