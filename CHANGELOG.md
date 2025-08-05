@@ -7,7 +7,7 @@
 
 ### Fixed
 
-## [1.0.8]
+## [1.0.9]
 
 ### Changed
 - error returns lowercase to field required field on validation
