@@ -1,5 +1,5 @@
 # Base image for Go
-FROM golang:1.23 AS go-base
+FROM golang:1.24 AS go-base
 
 # Add a non-root user
 ARG USER=vscode

@@ -1,5 +1,4 @@
 # Changelog
-
 ## [TBA]
 
 ### Added
@@ -7,6 +6,11 @@
 ### Changed
 
 ### Fixed
+
+## [1.0.8]
+
+### Changed
+- error returns lowercase to field required field on validation
 
 ## [1.0.7]
 

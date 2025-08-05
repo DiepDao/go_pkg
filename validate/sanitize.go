@@ -39,7 +39,7 @@ func CheckSchema(req any, r *http.Request) error {
 
 	var rawJSON map[string]any
 	if err := json.Unmarshal(bodyBytes, &rawJSON); err != nil {
-		return errors.New("invalid JSON format: " + err.Error())
+		return errors.New("invalid JSON format: " + strings.ToLower(err.Error()))
 	}
 
 	expectedFields := getFieldNames(req)
