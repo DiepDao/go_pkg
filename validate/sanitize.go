@@ -54,6 +54,12 @@ func CheckSchema(req any, r *http.Request) error {
 
 func EnforceSchemaRules(req any) error {
 	check := validator.New()
+
+	check.RegisterValidation("notblank", func(fl validator.FieldLevel) bool {
+		str := fl.Field().String()
+		return strings.TrimSpace(str) != ""
+	})
+
 	if err := check.Struct(req); err != nil {
 		return parseError(err)
 	}

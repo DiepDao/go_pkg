@@ -17,7 +17,7 @@ type Address struct {
 }
 
 type User struct {
-	Name    string  `json:"name" validate:"required"`
+	Name    string  `json:"name" validate:"required,notblank"`
 	Email   string  `json:"email" validate:"required,email"`
 	Age     int     `json:"age" validate:"required,min=10,max=20"`
 	Phone   string  `json:"phone,omitempty" validate:"omitempty,e164"`
@@ -147,7 +147,7 @@ func TestCheckSchema(t *testing.T) {
 	validJSON := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`
 	invalidExtraField := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345},"extraField":"unexpected"}` // ❌ Unknown field
 	caseSensitiveJSON := `{"Name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                           // ❌ Incorrect field case
-
+	bankfieldJson := `{"name":" ","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                                   // ❌ blank field case
 	// Test valid JSON
 	fmt.Println("🔹 Testing valid JSON...")
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(validJSON))
@@ -178,5 +178,23 @@ func TestCheckSchema(t *testing.T) {
 		t.Errorf("❌ Expected error due to incorrect casing, got nil")
 	} else {
 		fmt.Println("✅ Case-sensitive validation working correctly!")
+	}
+
+	// Test JSON with blank field
+	fmt.Println("\n🔹 Testing blank field JSON...")
+	req = httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(bankfieldJson))
+	var user User
+	err = validate.CheckSchema(&user, req)
+	if err != nil {
+		t.Errorf("❌ Expected schema check to pass, got: %v", err)
+	} else {
+		// Now enforce validation rules
+		err = validate.EnforceSchemaRules(user)
+		fmt.Println("📜 Error output:", err)
+		if err == nil {
+			t.Errorf("❌ Expected error due to blank 'name' field, got nil")
+		} else {
+			fmt.Println("✅ Blank field rejection passed!")
+		}
 	}
 }
