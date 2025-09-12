@@ -2,7 +2,10 @@ module github.com/DiepDao/go_pkg
 
 go 1.23.9
 
-require github.com/go-playground/validator/v10 v10.26.0
+require (
+	github.com/go-playground/validator/v10 v10.26.0
+	github.com/go-playground/mold/v4 v4.4.0
+)
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect

@@ -2,6 +2,7 @@ package validate_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -24,8 +25,8 @@ type User struct {
 	Address Address `json:"address" validate:"required"`
 }
 
-func TestEnforceSchemaRules(t *testing.T) {
-	fmt.Println("Starting TestValidateStruct...") // Log start
+func TestValidateStructRules(t *testing.T) {
+	fmt.Println("Starting TestValidateStructRules...") // Log start
 
 	// Test case: Valid input (without phone)
 	validUser := User{
@@ -38,7 +39,7 @@ func TestEnforceSchemaRules(t *testing.T) {
 		},
 		Phone: "", // ✅ Empty phone field (optional)
 	}
-	err := validate.EnforceSchemaRules(validUser)
+	err := validate.ValidateStructRules(validUser)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -54,9 +55,9 @@ func TestEnforceSchemaRules(t *testing.T) {
 		},
 		Phone: "+1234567890", // ✅ Valid E.164 phone format
 	}
-	err = validate.EnforceSchemaRules(validUserWithPhone)
+	err = validate.ValidateStructRules(validUserWithPhone)
 	if err != nil {
-		t.Errorf("Expected no error, got nil")
+		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// Test case: Invalid phone format
@@ -70,25 +71,38 @@ func TestEnforceSchemaRules(t *testing.T) {
 		},
 		Phone: "invalid-phone", // ❌ Not a valid E.164 format
 	}
-	err = validate.EnforceSchemaRules(invalidUserWithPhone)
+	err = validate.ValidateStructRules(invalidUserWithPhone)
 	if err == nil {
 		t.Errorf("Expected validation error, got nil")
 	}
 
-	fmt.Println("Finished TestValidateStruct.") // Log end
+	// Test custom ValidationError type
+	var validationErr *validate.ValidationError
+	if errors.As(err, &validationErr) {
+		fmt.Printf("✅ Custom ValidationError: %s\n", validationErr.Message)
+	} else {
+		t.Errorf("Expected ValidationError type, got %T", err)
+	}
+
+	fmt.Println("Finished TestValidateStructRules.") // Log end
 }
 
-func TestEnforceSchemaRulesFailures(t *testing.T) {
-	fmt.Println("Starting TestValidateStructFailures...") // Log start
+func TestValidateStructRulesFailures(t *testing.T) {
+	fmt.Println("Starting TestValidateStructRulesFailures...") // Log start
 
 	// Test case: Completely empty user (should fail)
 	emptyUser := User{}
-	err := validate.EnforceSchemaRules(emptyUser)
+	err := validate.ValidateStructRules(emptyUser)
 	fmt.Println("Validation error (Empty user):", err) // Print error
 	if err == nil {
 		t.Errorf("Expected validation error for empty user, got nil")
 	} else {
 		fmt.Println("✅ Empty user test passed:", err.Error())
+		// Test that it's a ValidationError type
+		var validationErr *validate.ValidationError
+		if !errors.As(err, &validationErr) {
+			t.Errorf("Expected ValidationError type, got %T", err)
+		}
 	}
 
 	// Test case: Missing required fields
@@ -101,7 +115,7 @@ func TestEnforceSchemaRulesFailures(t *testing.T) {
 			Zip:  123, // ❌ Invalid Zip Code (below min)
 		},
 	}
-	err = validate.EnforceSchemaRules(invalidUser)
+	err = validate.ValidateStructRules(invalidUser)
 	fmt.Println("Validation error (Missing fields):", err) // Print error
 	if err == nil {
 		t.Errorf("Expected validation error due to missing fields, got nil")
@@ -118,7 +132,7 @@ func TestEnforceSchemaRulesFailures(t *testing.T) {
 		},
 		Phone: "+1234567890",
 	}
-	err = validate.EnforceSchemaRules(invalidEmailUser)
+	err = validate.ValidateStructRules(invalidEmailUser)
 	fmt.Println("Validation error (Invalid email):", err) // Print error
 	if err == nil {
 		t.Errorf("Expected validation error due to invalid email, got nil")
@@ -134,24 +148,26 @@ func TestEnforceSchemaRulesFailures(t *testing.T) {
 			Zip:  98101,
 		},
 	}
-	err = validate.EnforceSchemaRules(outOfRangeAgeUser)
+	err = validate.ValidateStructRules(outOfRangeAgeUser)
 	fmt.Println("Validation error (Age out of range):", err) // Print error
 	if err == nil {
 		t.Errorf("Expected validation error due to age being out of range, got nil")
 	}
 
-	fmt.Println("Finished TestValidateStructFailures.") // Log end
+	fmt.Println("Finished TestValidateStructRulesFailures.") // Log end
 }
 
-func TestCheckSchema(t *testing.T) {
+func TestValidateRequestSchema(t *testing.T) {
 	validJSON := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`
 	invalidExtraField := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345},"extraField":"unexpected"}` // ❌ Unknown field
 	caseSensitiveJSON := `{"Name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                           // ❌ Incorrect field case
-	bankfieldJson := `{"name":" ","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                                   // ❌ blank field case
+	blankFieldJSON := `{"name":" ","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                                   // ❌ blank field case
+	
 	// Test valid JSON
 	fmt.Println("🔹 Testing valid JSON...")
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(validJSON))
-	err := validate.CheckSchema(&User{}, req)
+	var user User
+	err := validate.ValidateRequestSchema(&user, req)
 	if err != nil {
 		t.Errorf("❌ Expected no error, got: %v", err)
 	} else {
@@ -161,18 +177,25 @@ func TestCheckSchema(t *testing.T) {
 	// Test invalid JSON (extra unknown fields)
 	fmt.Println("\n🔹 Testing JSON with extra fields...")
 	req = httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(invalidExtraField))
-	err = validate.CheckSchema(&User{}, req)
+	user = User{}
+	err = validate.ValidateRequestSchema(&user, req)
 	fmt.Println("📜 Error output:", err) // Print error directly
 	if err == nil {
 		t.Errorf("❌ Expected error due to extra field, got nil")
 	} else {
 		fmt.Println("✅ Extra field rejection passed!")
+		// Test that it's a SchemaError type
+		var schemaErr *validate.SchemaError
+		if !errors.As(err, &schemaErr) {
+			t.Errorf("Expected SchemaError type, got %T", err)
+		}
 	}
 
 	// Test JSON with incorrect field casing
 	fmt.Println("\n🔹 Testing case-sensitive JSON...")
 	req = httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(caseSensitiveJSON))
-	err = validate.CheckSchema(&User{}, req)
+	user = User{}
+	err = validate.ValidateRequestSchema(&user, req)
 	fmt.Println("📜 Error output:", err) // Print error directly
 	if err == nil {
 		t.Errorf("❌ Expected error due to incorrect casing, got nil")
@@ -182,14 +205,14 @@ func TestCheckSchema(t *testing.T) {
 
 	// Test JSON with blank field
 	fmt.Println("\n🔹 Testing blank field JSON...")
-	req = httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(bankfieldJson))
-	var user User
-	err = validate.CheckSchema(&user, req)
+	req = httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(blankFieldJSON))
+	user = User{}
+	err = validate.ValidateRequestSchema(&user, req)
 	if err != nil {
 		t.Errorf("❌ Expected schema check to pass, got: %v", err)
 	} else {
 		// Now enforce validation rules
-		err = validate.EnforceSchemaRules(user)
+		err = validate.ValidateStructRules(user)
 		fmt.Println("📜 Error output:", err)
 		if err == nil {
 			t.Errorf("❌ Expected error due to blank 'name' field, got nil")
@@ -197,4 +220,35 @@ func TestCheckSchema(t *testing.T) {
 			fmt.Println("✅ Blank field rejection passed!")
 		}
 	}
+}
+
+// TestBackwardCompatibility tests that the deprecated functions still work
+func TestBackwardCompatibility(t *testing.T) {
+	fmt.Println("Starting TestBackwardCompatibility...")
+
+	// Test deprecated EnforceSchemaRules function
+	validUser := User{
+		Name:  "Alice",
+		Email: "alice@example.com",
+		Age:   15,
+		Address: Address{
+			City: "New York",
+			Zip:  12345,
+		},
+	}
+	err := validate.EnforceSchemaRules(validUser)
+	if err != nil {
+		t.Errorf("Expected no error from deprecated EnforceSchemaRules, got %v", err)
+	}
+
+	// Test deprecated CheckSchema function
+	validJSON := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(validJSON))
+	var user User
+	err = validate.CheckSchema(&user, req)
+	if err != nil {
+		t.Errorf("Expected no error from deprecated CheckSchema, got %v", err)
+	}
+
+	fmt.Println("✅ Backward compatibility tests passed!")
 }
