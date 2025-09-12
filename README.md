@@ -294,7 +294,7 @@ The `defaults` package provides an easy way to set default values for struct fie
 
 ### Features
 
-- **Struct Tag Support**: Use `default` tags to specify default values
+- **Struct Tag Support**: Use `mod` tags with `default=...` to specify default values
 - **Type Safety**: Supports all basic Go types (string, int, bool, float, etc.)
 - **Performance**: Singleton transformer instance for optimal performance
 - **Error Handling**: Custom error types for better debugging
@@ -312,11 +312,11 @@ import (
 )
 
 type Config struct {
-    Host     string `default:"localhost"`
-    Port     int    `default:"8080"`
-    Debug    bool   `default:"false"`
-    Timeout  int    `default:"30"`
-    Protocol string `default:"http"`
+    Host     string `mod:"default=localhost"`
+    Port     int    `mod:"default=8080"`
+    Debug    bool   `mod:"default=false"`
+    Timeout  int    `mod:"default=30"`
+    Protocol string `mod:"default=http"`
 }
 
 func main() {
@@ -339,11 +339,11 @@ func main() {
 
 ```go
 type User struct {
-    Name     string `default:"Anonymous"`
-    Age      int    `default:"18"`
-    Email    string `default:"user@example.com"`
-    IsActive bool   `default:"true"`
-    Role     string `default:"user"`
+    Name     string `mod:"default=Anonymous"`
+    Age      int    `mod:"default=18"`
+    Email    string `mod:"default=user@example.com"`
+    IsActive bool   `mod:"default=true"`
+    Role     string `mod:"default=user"`
 }
 
 func createUser() {
@@ -403,10 +403,8 @@ func createUserWithGeneric() {
 ```go
 func createUserWithContext() {
     user := &User{}
-    ctx := map[string]interface{}{
-        "environment": "production",
-        "version":     "1.0.0",
-    }
+    // Use a real context; replace the key with your own typed key if needed
+    ctx := context.WithValue(context.Background(), "environment", "production")
     
     if err := defaults.SetDefaultsWithContext(user, ctx); err != nil {
         fmt.Printf("Error: %v\n", err)
@@ -450,11 +448,11 @@ func createUserHandler(w http.ResponseWriter, r *http.Request) {
 
 | Go Type | Example Tag | Description |
 |---------|-------------|-------------|
-| `string` | `default:"hello"` | String literals |
-| `int`, `int32`, `int64` | `default:"42"` | Integer numbers |
-| `float32`, `float64` | `default:"3.14"` | Floating point numbers |
-| `bool` | `default:"true"` | Boolean values (true/false) |
-| `uint`, `uint32`, `uint64` | `default:"100"` | Unsigned integers |
+| `string` | `mod:"default=hello"` | String literals |
+| `int`, `int32`, `int64` | `mod:"default=42"` | Integer numbers |
+| `float32`, `float64` | `mod:"default=3.14"` | Floating point numbers |
+| `bool` | `mod:"default=true"` | Boolean values (true/false) |
+| `uint`, `uint32`, `uint64` | `mod:"default=100"` | Unsigned integers |
 
 ### Error Handling
 
@@ -462,7 +460,7 @@ The defaults package provides structured error handling:
 
 ```go
 func handleDefaultsErrors(err error) {
-    var defaultsErr *defaults.DefaultsError
+    var defaultsErr defaults.DefaultsError
     if errors.As(err, &defaultsErr) {
         fmt.Printf("Defaults Error: %s\n", defaultsErr.Message)
         if defaultsErr.Field != "" {
@@ -479,22 +477,22 @@ func handleDefaultsErrors(err error) {
 #### Configuration Structs
 ```go
 type DatabaseConfig struct {
-    Host         string `default:"localhost"`
-    Port         int    `default:"5432"`
-    Database     string `default:"myapp"`
-    MaxConns     int    `default:"10"`
-    Timeout      int    `default:"30"`
-    SSLMode      string `default:"disable"`
-    AutoMigrate  bool   `default:"true"`
+    Host         string `mod:"default=localhost"`
+    Port         int    `mod:"default=5432"`
+    Database     string `mod:"default=myapp"`
+    MaxConns     int    `mod:"default=10"`
+    Timeout      int    `mod:"default=30"`
+    SSLMode      string `mod:"default=disable"`
+    AutoMigrate  bool   `mod:"default=true"`
 }
 ```
 
 #### API Response Defaults
 ```go
 type APIResponse struct {
-    Status  string `default:"success"`
-    Code    int    `default:"200"`
-    Message string `default:"Operation completed successfully"`
+    Status  string `mod:"default=success"`
+    Code    int    `mod:"default=200"`
+    Message string `mod:"default=Operation completed successfully"`
     Data    interface{} // No default needed
 }
 ```
@@ -502,11 +500,11 @@ type APIResponse struct {
 #### User Preferences
 ```go
 type UserPreferences struct {
-    Theme         string `default:"light"`
-    Language      string `default:"en"`
-    Notifications bool   `default:"true"`
-    PageSize      int    `default:"20"`
-    Timezone      string `default:"UTC"`
+    Theme         string `mod:"default=light"`
+    Language      string `mod:"default=en"`
+    Notifications bool   `mod:"default=true"`
+    PageSize      int    `mod:"default=20"`
+    Timezone      string `mod:"default=UTC"`
 }
 ```
 

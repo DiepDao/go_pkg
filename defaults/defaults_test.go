@@ -1,6 +1,7 @@
 package defaults_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -10,25 +11,25 @@ import (
 
 // Test structs with various default scenarios
 type User struct {
-	Name     string `default:"Anonymous"`
-	Age      int    `default:"18"`
-	Email    string `default:"user@example.com"`
-	IsActive bool   `default:"true"`
-	Role     string `default:"user"`
+	Name     string `mod:"default=Anonymous"`
+	Age      int    `mod:"default=18"`
+	Email    string `mod:"default=user@example.com"`
+	IsActive bool   `mod:"default=true"`
+	Role     string `mod:"default=user"`
 }
 
 type Config struct {
-	Host     string `default:"localhost"`
-	Port     int    `default:"8080"`
-	Debug    bool   `default:"false"`
-	Timeout  int    `default:"30"`
-	Protocol string `default:"http"`
+	Host     string `mod:"default=localhost"`
+	Port     int    `mod:"default=8080"`
+	Debug    bool   `mod:"default=false"`
+	Timeout  int    `mod:"default=30"`
+	Protocol string `mod:"default=http"`
 }
 
 type NestedStruct struct {
-	User   User   `default:""`
-	Config Config `default:""`
-	Title  string `default:"Default Title"`
+	User   User   `mod:"default="`
+	Config Config `mod:"default="`
+	Title  string `mod:"default=Default Title"`
 }
 
 type EmptyStruct struct {
@@ -139,7 +140,7 @@ func TestSetDefaultsErrors(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error for nil input, got nil")
 	}
-	var defaultsErr *defaults.DefaultsError
+	var defaultsErr defaults.DefaultsError
 	if !errors.As(err, &defaultsErr) {
 		t.Errorf("Expected DefaultsError type, got %T", err)
 	}
@@ -171,9 +172,7 @@ func TestSetDefaultsWithContext(t *testing.T) {
 	fmt.Println("Starting TestSetDefaultsWithContext...")
 
 	user := &User{}
-	ctx := map[string]interface{}{
-		"environment": "test",
-	}
+	ctx := context.WithValue(context.Background(), "environment", "test")
 
 	err := defaults.SetDefaultsWithContext(user, ctx)
 	if err != nil {

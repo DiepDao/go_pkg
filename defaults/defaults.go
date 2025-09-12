@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/go-playground/mold/v4"
@@ -47,8 +48,8 @@ func SetDefaults(data interface{}) error {
 		return DefaultsError{Message: "input must be a pointer to struct"}
 	}
 
-	// Apply transformations using mold
-	if err := globalMold.Struct(data); err != nil {
+	// Apply transformations using mold with context
+	if err := globalMold.Struct(context.Background(), data); err != nil {
 		return DefaultsError{Message: "failed to set defaults: " + err.Error()}
 	}
 
@@ -57,7 +58,7 @@ func SetDefaults(data interface{}) error {
 
 // SetDefaultsWithContext applies default values with custom context
 // This allows for more advanced default setting scenarios
-func SetDefaultsWithContext(data interface{}, ctx interface{}) error {
+func SetDefaultsWithContext(data interface{}, ctx context.Context) error {
 	if data == nil {
 		return DefaultsError{Message: "input data cannot be nil"}
 	}
@@ -72,7 +73,7 @@ func SetDefaultsWithContext(data interface{}, ctx interface{}) error {
 	}
 
 	// Apply transformations with context
-	if err := globalMold.StructCtx(ctx, data); err != nil {
+	if err := globalMold.Struct(ctx, data); err != nil {
 		return DefaultsError{Message: "failed to set defaults with context: " + err.Error()}
 	}
 
