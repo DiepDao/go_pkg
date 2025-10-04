@@ -1,5 +1,13 @@
 # Changelog
 
+## [TBA]
+
+### Added
+- validate: `ValidateRequestSchemaArray` to validate JSON arrays of objects against struct `json` tags and unmarshal into slices
+- validate: `ValidateStructArrayRules` to validate each array/slice element using tags and aggregate errors with item indices
+- Documentation: README updated with array-of-objects examples, error handling notes, and migration snippet
+- Tests: Unit tests covering array schema and per-item validation in `validate/sanitize_test.go`
+
 ## [1.0.14]
 ## [13-09-2025]
 

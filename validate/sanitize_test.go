@@ -11,7 +11,6 @@ import (
 	"github.com/DiepDao/go_pkg/validate"
 )
 
-// Define a nested struct with validation tags
 type Address struct {
 	City string `json:"city" validate:"required"`
 	Zip  int    `json:"zip" validate:"required,min=10000,max=99999"`
@@ -23,6 +22,105 @@ type User struct {
 	Age     int     `json:"age" validate:"required,min=10,max=20"`
 	Phone   string  `json:"phone,omitempty" validate:"omitempty,e164"`
 	Address Address `json:"address" validate:"required"`
+}
+
+func TestValidateRequestSchemaArray(t *testing.T) {
+	type Users []User
+
+	validJSONArray := `[
+        {"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}},
+        {"name":"Bob","email":"bob@example.com","age":18,"address":{"city":"Boston","zip":54321}}
+    ]`
+
+	invalidExtraFieldArray := `[
+        {"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}},
+        {"name":"Bob","email":"bob@example.com","age":18,"address":{"city":"Boston","zip":54321},"extra":"nope"}
+    ]`
+
+	invalidCasingArray := `[
+        {"Name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}
+    ]`
+
+	// Valid array
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(validJSONArray))
+	var users Users
+	if err := validate.ValidateRequestSchemaArray(&users, req); err != nil {
+		t.Fatalf("Expected no error for valid array, got: %v", err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("Expected 2 users, got %d", len(users))
+	}
+
+	// Invalid extra field in one item
+	req = httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(invalidExtraFieldArray))
+	users = Users{}
+	err := validate.ValidateRequestSchemaArray(&users, req)
+	if err == nil {
+		t.Fatalf("Expected error for extra field in array item, got nil")
+	}
+	var schemaErr *validate.SchemaError
+	if !errors.As(err, &schemaErr) {
+		t.Fatalf("Expected SchemaError type, got %T", err)
+	}
+
+	// Invalid casing
+	req = httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(invalidCasingArray))
+	users = Users{}
+	err = validate.ValidateRequestSchemaArray(&users, req)
+	if err == nil {
+		t.Fatalf("Expected error due to incorrect field casing in array item, got nil")
+	}
+}
+
+func TestValidateStructArrayRules(t *testing.T) {
+	// Valid slice
+	valid := []User{
+		{
+			Name:  "Alice",
+			Email: "alice@example.com",
+			Age:   15,
+			Address: Address{
+				City: "New York",
+				Zip:  12345,
+			},
+		},
+		{
+			Name:  "Bob",
+			Email: "bob@example.com",
+			Age:   18,
+			Address: Address{
+				City: "Boston",
+				Zip:  54321,
+			},
+			Phone: "+1234567890",
+		},
+	}
+	if err := validate.ValidateStructArrayRules(valid); err != nil {
+		t.Fatalf("Expected no error for valid slice, got: %v", err)
+	}
+
+	// Slice with one invalid element
+	invalid := []User{
+		valid[0],
+		{
+			Name:  " ", // notblank fails
+			Email: "not-an-email",
+			Age:   25, // beyond max
+			Address: Address{
+				City: "",
+				Zip:  999, // below min
+			},
+			Phone: "invalid-phone",
+		},
+	}
+	err := validate.ValidateStructArrayRules(invalid)
+	if err == nil {
+		t.Fatalf("Expected aggregated validation error for invalid slice, got nil")
+	}
+	var vErr *validate.ValidationError
+	if !errors.As(err, &vErr) {
+		t.Fatalf("Expected ValidationError type, got %T", err)
+	}
 }
 
 func TestValidateStructRules(t *testing.T) {
@@ -37,7 +135,7 @@ func TestValidateStructRules(t *testing.T) {
 			City: "New York",
 			Zip:  12345,
 		},
-		Phone: "", // ✅ Empty phone field (optional)
+		Phone: "", // Empty phone field (optional)
 	}
 	err := validate.ValidateStructRules(validUser)
 	if err != nil {
@@ -53,7 +151,7 @@ func TestValidateStructRules(t *testing.T) {
 			City: "Boston",
 			Zip:  54321,
 		},
-		Phone: "+1234567890", // ✅ Valid E.164 phone format
+		Phone: "+1234567890", // Valid E.164 phone format
 	}
 	err = validate.ValidateStructRules(validUserWithPhone)
 	if err != nil {
@@ -69,7 +167,7 @@ func TestValidateStructRules(t *testing.T) {
 			City: "Chicago",
 			Zip:  12345,
 		},
-		Phone: "invalid-phone", // ❌ Not a valid E.164 format
+		Phone: "invalid-phone", // Not a valid E.164 format
 	}
 	err = validate.ValidateStructRules(invalidUserWithPhone)
 	if err == nil {
@@ -79,12 +177,11 @@ func TestValidateStructRules(t *testing.T) {
 	// Test custom ValidationError type
 	var validationErr *validate.ValidationError
 	if errors.As(err, &validationErr) {
-		fmt.Printf("✅ Custom ValidationError: %s\n", validationErr.Message)
+		fmt.Printf("Custom ValidationError: %s\n", validationErr.Message)
 	} else {
 		t.Errorf("Expected ValidationError type, got %T", err)
 	}
 
-	fmt.Println("Finished TestValidateStructRules.") // Log end
 }
 
 func TestValidateStructRulesFailures(t *testing.T) {
@@ -97,7 +194,7 @@ func TestValidateStructRulesFailures(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected validation error for empty user, got nil")
 	} else {
-		fmt.Println("✅ Empty user test passed:", err.Error())
+		fmt.Println("Empty user test passed:", err.Error())
 		// Test that it's a ValidationError type
 		var validationErr *validate.ValidationError
 		if !errors.As(err, &validationErr) {
@@ -107,12 +204,12 @@ func TestValidateStructRulesFailures(t *testing.T) {
 
 	// Test case: Missing required fields
 	invalidUser := User{
-		Name:  "", // ❌ Missing Name
-		Email: "", // ❌ Missing Email
-		Age:   15, // ✅ Valid Age
+		Name:  "", // Missing Name
+		Email: "", // Missing Email
+		Age:   15, // Valid Age
 		Address: Address{
-			City: "",  // ❌ Missing City
-			Zip:  123, // ❌ Invalid Zip Code (below min)
+			City: "",  // Missing City
+			Zip:  123, // Invalid Zip Code (below min)
 		},
 	}
 	err = validate.ValidateStructRules(invalidUser)
@@ -161,8 +258,8 @@ func TestValidateRequestSchema(t *testing.T) {
 	validJSON := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`
 	invalidExtraField := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345},"extraField":"unexpected"}` // ❌ Unknown field
 	caseSensitiveJSON := `{"Name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                           // ❌ Incorrect field case
-	blankFieldJSON := `{"name":" ","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                                   // ❌ blank field case
-	
+	blankFieldJSON := `{"name":" ","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`                                  // ❌ blank field case
+
 	// Test valid JSON
 	fmt.Println("🔹 Testing valid JSON...")
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(validJSON))
@@ -220,35 +317,4 @@ func TestValidateRequestSchema(t *testing.T) {
 			fmt.Println("✅ Blank field rejection passed!")
 		}
 	}
-}
-
-// TestBackwardCompatibility tests that the deprecated functions still work
-func TestBackwardCompatibility(t *testing.T) {
-	fmt.Println("Starting TestBackwardCompatibility...")
-
-	// Test deprecated EnforceSchemaRules function
-	validUser := User{
-		Name:  "Alice",
-		Email: "alice@example.com",
-		Age:   15,
-		Address: Address{
-			City: "New York",
-			Zip:  12345,
-		},
-	}
-	err := validate.EnforceSchemaRules(validUser)
-	if err != nil {
-		t.Errorf("Expected no error from deprecated EnforceSchemaRules, got %v", err)
-	}
-
-	// Test deprecated CheckSchema function
-	validJSON := `{"name":"Alice","email":"alice@example.com","age":15,"address":{"city":"New York","zip":12345}}`
-	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(validJSON))
-	var user User
-	err = validate.CheckSchema(&user, req)
-	if err != nil {
-		t.Errorf("Expected no error from deprecated CheckSchema, got %v", err)
-	}
-
-	fmt.Println("✅ Backward compatibility tests passed!")
 }

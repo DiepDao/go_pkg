@@ -30,6 +30,7 @@ The `validate` package provides robust validation for HTTP requests and Go struc
 - **Security**: Built-in request body size limits (1MB)
 - **Performance**: Singleton validator instance for optimal performance
 - **Custom Validation Rules**: Support for custom validation like `notblank`
+- **Array Payload Validation**: Validate JSON arrays of objects using `ValidateRequestSchemaArray` and per-item rules with `ValidateStructArrayRules` (aggregates errors with element indices)
 
 ### Quick Start
 
@@ -120,6 +121,32 @@ func validateUserData() {
 }
 ```
 
+#### 3. Array of Objects (HTTP + per-item rules)
+
+```go
+// Reuse the User struct from above
+
+func bulkCreateUsers(w http.ResponseWriter, r *http.Request) {
+    var users []User
+
+    // 1) Validate schema for an array payload and unmarshal into the slice
+    if err := validate.ValidateRequestSchemaArray(&users, r); err != nil {
+        // SchemaError for unknown fields, bad JSON, wrong casing, etc.
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    // 2) Validate each element using struct tags, with indexed aggregation
+    if err := validate.ValidateStructArrayRules(users); err != nil {
+        // ValidationError with messages like: "item[2]: validation failed: ..."
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    fmt.Fprintf(w, "Created %d users", len(users))
+}
+```
+
 ### Advanced Usage Examples
 
 #### 1. Nested Struct Validation
@@ -195,6 +222,10 @@ func handleValidationErrors(err error) {
 }
 ```
 
+Note:
+- For array schema checks, `ValidateRequestSchemaArray` reports the first offending element's index in the error message.
+- For per-item validation, `ValidateStructArrayRules` aggregates failures and prefixes each with `item[i]`.
+
 ### Common Validation Tags
 
 | Tag | Description | Example |
@@ -253,6 +284,23 @@ func handleValidationErrors(err error) {
 ```
 *Error: `validation failed: name is required`*
 
+#### Valid Array Request
+```json
+[
+  {"name": "Alice", "email": "alice@example.com", "age": 25, "address": {"city": "NYC", "zip": 10001}},
+  {"name": "Bob",   "email": "bob@example.com",   "age": 30, "address": {"city": "Boston", "zip": 21008}}
+]
+```
+
+#### Invalid Array Request (unknown field in one element)
+```json
+[
+  {"name": "Alice", "email": "alice@example.com", "age": 25, "address": {"city": "NYC", "zip": 10001}},
+  {"name": "Bob",   "email": "bob@example.com",   "age": 30, "address": {"city": "Boston", "zip": 21008}, "extra": "nope"}
+]
+```
+*Error: `schema validation failed: invalid field name or incorrect casing at index 1: extra`*
+
 ### Migration from Old API
 
 If you're using the deprecated functions, here's how to migrate:
@@ -265,6 +313,13 @@ err = validate.EnforceSchemaRules(user)
 // New recommended way
 err := validate.ValidateRequestSchema(&user, request)
 err = validate.ValidateStructRules(user)
+```
+
+```go
+// Arrays of objects
+var users []User
+err := validate.ValidateRequestSchemaArray(&users, request)
+err = validate.ValidateStructArrayRules(users)
 ```
 
 ### Security Features
