@@ -600,3 +600,247 @@ func BenchmarkMapIndexed_Integers(b *testing.B) {
 		})
 	}
 }
+
+// TestIncludes_Integers tests Includes with integers
+func TestIncludes_Integers(t *testing.T) {
+	numbers := []int{1, 2, 3, 4, 5}
+
+	// Check if any number is greater than 3
+	result := array.Includes(numbers, func(n int) bool {
+		return n > 3
+	})
+
+	if !result {
+		t.Error("Expected true, got false")
+	}
+
+	// Check if any number is greater than 10
+	result = array.Includes(numbers, func(n int) bool {
+		return n > 10
+	})
+
+	if result {
+		t.Error("Expected false, got true")
+	}
+}
+
+// TestIncludes_Strings tests Includes with strings
+func TestIncludes_Strings(t *testing.T) {
+	words := []string{"apple", "banana", "cherry", "date"}
+
+	// Check if any word starts with 'b'
+	result := array.Includes(words, func(s string) bool {
+		return len(s) > 0 && s[0] == 'b'
+	})
+
+	if !result {
+		t.Error("Expected true, got false")
+	}
+
+	// Check if any word starts with 'z'
+	result = array.Includes(words, func(s string) bool {
+		return len(s) > 0 && s[0] == 'z'
+	})
+
+	if result {
+		t.Error("Expected false, got true")
+	}
+}
+
+// TestIncludes_Structs tests Includes with structs
+func TestIncludes_Structs(t *testing.T) {
+	people := []Person{
+		{Name: "Alice", Age: 25},
+		{Name: "Bob", Age: 17},
+		{Name: "Charlie", Age: 30},
+	}
+
+	// Check if any person is under 18
+	result := array.Includes(people, func(p Person) bool {
+		return p.Age < 18
+	})
+
+	if !result {
+		t.Error("Expected true (Bob is 17), got false")
+	}
+
+	// Check if any person is over 40
+	result = array.Includes(people, func(p Person) bool {
+		return p.Age > 40
+	})
+
+	if result {
+		t.Error("Expected false, got true")
+	}
+}
+
+// TestIncludes_EmptySlice tests Includes with empty slice
+func TestIncludes_EmptySlice(t *testing.T) {
+	empty := []int{}
+	result := array.Includes(empty, func(n int) bool {
+		return n > 0
+	})
+
+	if result {
+		t.Error("Expected false for empty slice, got true")
+	}
+}
+
+// TestIncludes_NilPredicate tests Includes with nil predicate
+func TestIncludes_NilPredicate(t *testing.T) {
+	numbers := []int{1, 2, 3}
+	result := array.Includes(numbers, nil)
+
+	if result {
+		t.Error("Expected false for nil predicate, got true")
+	}
+}
+
+// TestIncludes_AllMatch tests Includes when all elements match
+func TestIncludes_AllMatch(t *testing.T) {
+	numbers := []int{2, 4, 6, 8, 10}
+	result := array.Includes(numbers, func(n int) bool {
+		return n%2 == 0
+	})
+
+	if !result {
+		t.Error("Expected true (all are even), got false")
+	}
+}
+
+// TestIncludes_FirstMatch tests Includes returns true on first match
+func TestIncludes_FirstMatch(t *testing.T) {
+	numbers := []int{1, 2, 3, 4, 5}
+	callCount := 0
+
+	result := array.Includes(numbers, func(n int) bool {
+		callCount++
+		return n == 2
+	})
+
+	if !result {
+		t.Error("Expected true, got false")
+	}
+
+	// Should stop at index 1 (second element)
+	if callCount != 2 {
+		t.Errorf("Expected 2 calls (stops at first match), got %d", callCount)
+	}
+}
+
+// TestIncludesIndexed_WithIndex tests IncludesIndexed using index
+func TestIncludesIndexed_WithIndex(t *testing.T) {
+	numbers := []int{10, 20, 30, 40, 50}
+
+	// Check if any element at even index is greater than 25
+	result := array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+		return index%2 == 0 && v > 25
+	})
+
+	if !result {
+		t.Error("Expected true (30 at index 2, 50 at index 4), got false")
+	}
+
+	// Check if any element at odd index is greater than 100
+	result = array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+		return index%2 == 1 && v > 100
+	})
+
+	if result {
+		t.Error("Expected false, got true")
+	}
+}
+
+// TestIncludesIndexed_WithArray tests IncludesIndexed using array parameter
+func TestIncludesIndexed_WithArray(t *testing.T) {
+	numbers := []int{5, 10, 15, 20, 25}
+
+	// Check if any element is greater than the first element
+	result := array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+		return v > arr[0]
+	})
+
+	if !result {
+		t.Error("Expected true (10, 15, 20, 25 are all > 5), got false")
+	}
+
+	// Check if any element is less than the first element
+	result = array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+		return v < arr[0]
+	})
+
+	if result {
+		t.Error("Expected false, got true")
+	}
+}
+
+// TestIncludesIndexed_ComplexPredicate tests complex predicate logic
+func TestIncludesIndexed_ComplexPredicate(t *testing.T) {
+	products := []Product{
+		{ID: 1, Name: "Laptop", Price: 999.99},
+		{ID: 2, Name: "Mouse", Price: 25.50},
+		{ID: 3, Name: "Keyboard", Price: 75.00},
+		{ID: 4, Name: "Monitor", Price: 299.99},
+	}
+
+	// Check if any product at odd index has price > 50
+	result := array.IncludesIndexed(products, func(p Product, index int, arr []Product) bool {
+		return index%2 == 1 && p.Price > 50
+	})
+
+	if !result {
+		t.Error("Expected true (Monitor at index 3 has price 299.99), got false")
+	}
+}
+
+// TestIncludesIndexed_NilPredicate tests IncludesIndexed with nil predicate
+func TestIncludesIndexed_NilPredicate(t *testing.T) {
+	numbers := []int{1, 2, 3}
+	result := array.IncludesIndexed(numbers, nil)
+
+	if result {
+		t.Error("Expected false for nil predicate, got true")
+	}
+}
+
+// TestIncludesIndexed_EmptySlice tests IncludesIndexed with empty slice
+func TestIncludesIndexed_EmptySlice(t *testing.T) {
+	empty := []int{}
+	result := array.IncludesIndexed(empty, func(v int, index int, arr []int) bool {
+		return v > 0
+	})
+
+	if result {
+		t.Error("Expected false for empty slice, got true")
+	}
+}
+
+// BenchmarkIncludes_Integers benchmarks Includes with integers
+func BenchmarkIncludes_Integers(b *testing.B) {
+	numbers := make([]int, 1000)
+	for i := range numbers {
+		numbers[i] = i
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = array.Includes(numbers, func(n int) bool {
+			return n > 500
+		})
+	}
+}
+
+// BenchmarkIncludesIndexed_Integers benchmarks IncludesIndexed with integers
+func BenchmarkIncludesIndexed_Integers(b *testing.B) {
+	numbers := make([]int, 1000)
+	for i := range numbers {
+		numbers[i] = i
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+			return v > 500 && index%2 == 0
+		})
+	}
+}

@@ -67,3 +67,39 @@ func MapIndexed[T any, R any](in []T, mapper func(v T, index int, arr []T) R) []
 	}
 	return out
 }
+
+// Includes checks if at least one element in the slice satisfies the provided
+// predicate function. Returns true if the predicate returns true for any element,
+// false otherwise. Similar to JavaScript's Array.some().
+//
+// If predicate is nil, returns false.
+func Includes[T any](in []T, predicate func(T) bool) bool {
+	if predicate == nil {
+		return false
+	}
+
+	for _, v := range in {
+		if predicate(v) {
+			return true
+		}
+	}
+	return false
+}
+
+// IncludesIndexed behaves like Includes but the predicate additionally receives
+// the element's index and the original input slice, similar to JavaScript's
+// Array.some callback signature: (item, index, array) => boolean.
+//
+// If predicate is nil, returns false.
+func IncludesIndexed[T any](in []T, predicate func(v T, index int, arr []T) bool) bool {
+	if predicate == nil {
+		return false
+	}
+
+	for i, v := range in {
+		if predicate(v, i, in) {
+			return true
+		}
+	}
+	return false
+}
