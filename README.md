@@ -658,10 +658,11 @@ The `array` package provides generic, type-safe utility functions for slice oper
 
 - **Generic Type Support**: Works with any type (structs, strings, ints, floats, custom types, etc.)
 - **Type Safety**: Full compile-time type checking with Go generics
-- **Immutable Operations**: Original slices are never modified
-- **JavaScript-like API**: Familiar filter functions similar to Array.filter()
-- **Performance**: Optimized implementations with pre-allocated capacity
+- **Immutable Operations**: Original slices are never modified (Filter/Map)
+- **JavaScript-like API**: Familiar functions similar to Array.filter(), Array.map(), Array.some()
+- **Performance**: Optimized implementations with pre-allocated capacity and early-exit for checks
 - **Zero Dependencies**: Pure Go implementation
+- **Index Access**: All functions have indexed variants for complex operations
 
 ### Quick Start
 
@@ -688,6 +689,12 @@ func main() {
     })
     fmt.Println(doubled) // Output: [2 4 6 8 10 12 14 16 18 20]
     
+    // Includes: check if any number is greater than 5
+    hasLarge := array.Includes(numbers, func(n int) bool {
+        return n > 5
+    })
+    fmt.Println(hasLarge) // Output: true
+    
     // Chain: filter evens, then double them
     result := array.Map(evens, func(n int) int {
         return n * 2
@@ -697,6 +704,17 @@ func main() {
 ```
 
 ### Functions
+
+#### Overview
+
+| Function | Description | JavaScript Equivalent |
+|----------|-------------|----------------------|
+| `Filter` | Returns elements that match predicate | `Array.filter()` |
+| `FilterIndexed` | Filter with index and array access | `Array.filter((item, index, array) => ...)` |
+| `Map` | Transform elements to new values | `Array.map()` |
+| `MapIndexed` | Map with index and array access | `Array.map((item, index, array) => ...)` |
+| `Includes` | Check if at least one element matches | `Array.some()` |
+| `IncludesIndexed` | Includes with index and array access | `Array.some((item, index, array) => ...)` |
 
 #### Filter
 
@@ -1012,20 +1030,181 @@ percentages := array.MapIndexed(numbers, func(v int, index int, arr []int) float
 // Result: [6.67, 13.33, 20.0, 26.67, 33.33] (approximately)
 ```
 
+#### Includes
+
+`Includes[T any](in []T, predicate func(T) bool) bool`
+
+Checks if at least one element in the slice satisfies the provided predicate function. Returns `true` if any element matches, `false` otherwise. Similar to JavaScript's `Array.some()` or `Array.includes()` with a predicate.
+
+**Parameters:**
+- `in`: Input slice of any type
+- `predicate`: Function that tests each element (returns true if match found)
+
+**Returns:** Boolean indicating if at least one element matches
+
+**Example - Check Integers:**
+```go
+numbers := []int{1, 2, 3, 4, 5}
+
+// Check if any number is greater than 3
+hasLarge := array.Includes(numbers, func(n int) bool {
+    return n > 3
+})
+// Result: true (4 and 5 are > 3)
+
+// Check if any number is greater than 10
+hasTen := array.Includes(numbers, func(n int) bool {
+    return n > 10
+})
+// Result: false
+```
+
+**Example - Check Strings:**
+```go
+words := []string{"apple", "banana", "cherry", "date"}
+
+// Check if any word starts with 'b'
+hasBWord := array.Includes(words, func(s string) bool {
+    return len(s) > 0 && s[0] == 'b'
+})
+// Result: true ("banana")
+
+// Check if any word starts with 'z'
+hasZWord := array.Includes(words, func(s string) bool {
+    return len(s) > 0 && s[0] == 'z'
+})
+// Result: false
+```
+
+**Example - Check Structs:**
+```go
+type Person struct {
+    Name string
+    Age  int
+}
+
+people := []Person{
+    {Name: "Alice", Age: 25},
+    {Name: "Bob", Age: 17},
+    {Name: "Charlie", Age: 30},
+}
+
+// Check if any person is under 18
+hasMinor := array.Includes(people, func(p Person) bool {
+    return p.Age < 18
+})
+// Result: true (Bob is 17)
+
+// Check if any person is over 40
+hasSenior := array.Includes(people, func(p Person) bool {
+    return p.Age > 40
+})
+// Result: false
+```
+
+**Example - Early Exit Optimization:**
+```go
+// Includes stops at the first match, making it efficient
+numbers := []int{1, 2, 3, 4, 5}
+
+hasTwo := array.Includes(numbers, func(n int) bool {
+    fmt.Printf("Checking %d\n", n)
+    return n == 2
+})
+// Output:
+// Checking 1
+// Checking 2
+// (stops here, doesn't check 3, 4, 5)
+// Result: true
+```
+
+#### IncludesIndexed
+
+`IncludesIndexed[T any](in []T, predicate func(v T, index int, arr []T) bool) bool`
+
+Like `Includes`, but the predicate receives additional parameters: the element's index and the original array. This matches JavaScript's `Array.some((item, index, array) => boolean)` signature.
+
+**Parameters:**
+- `in`: Input slice of any type
+- `predicate`: Function that receives (value, index, original array) and returns boolean
+
+**Returns:** Boolean indicating if at least one element matches
+
+**Example - Check by Index:**
+```go
+numbers := []int{10, 20, 30, 40, 50}
+
+// Check if any element at even index is greater than 25
+hasEvenIndexLarge := array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+    return index%2 == 0 && v > 25
+})
+// Result: true (30 at index 2, 50 at index 4)
+
+// Check if any element at odd index is greater than 100
+hasOddIndexHuge := array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+    return index%2 == 1 && v > 100
+})
+// Result: false
+```
+
+**Example - Check Using Original Array:**
+```go
+numbers := []int{5, 10, 15, 20, 25}
+
+// Check if any element is greater than the first element
+hasGreaterThanFirst := array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+    return v > arr[0]
+})
+// Result: true (10, 15, 20, 25 are all > 5)
+
+// Check if any element equals the last element (excluding the last)
+hasDuplicateOfLast := array.IncludesIndexed(numbers, func(v int, index int, arr []int) bool {
+    return index < len(arr)-1 && v == arr[len(arr)-1]
+})
+// Result: false
+```
+
+**Example - Complex Validation:**
+```go
+type Product struct {
+    ID    int
+    Name  string
+    Price float64
+}
+
+products := []Product{
+    {ID: 1, Name: "Laptop", Price: 999.99},
+    {ID: 2, Name: "Mouse", Price: 25.50},
+    {ID: 3, Name: "Keyboard", Price: 75.00},
+    {ID: 4, Name: "Monitor", Price: 299.99},
+}
+
+// Check if any product at odd index has price > $50
+hasExpensiveAtOddIndex := array.IncludesIndexed(products, func(p Product, index int, arr []Product) bool {
+    return index%2 == 1 && p.Price > 50
+})
+// Result: true (Monitor at index 3 has price $299.99)
+```
+
 ### Special Cases
 
 #### Nil Predicate
-If you pass `nil` as the predicate, both `Filter` and `FilterIndexed` return a shallow copy of the input slice:
-
+**Filter/FilterIndexed:** Returns a shallow copy of the input slice:
 ```go
 numbers := []int{1, 2, 3, 4, 5}
 copy := array.Filter(numbers, nil)
 // Result: [1, 2, 3, 4, 5] (new slice, same values)
 ```
 
-#### Empty Slice
-Filtering an empty slice returns an empty slice:
+**Includes/IncludesIndexed:** Returns `false`:
+```go
+numbers := []int{1, 2, 3, 4, 5}
+result := array.Includes(numbers, nil)
+// Result: false
+```
 
+#### Empty Slice
+**Filter/FilterIndexed:** Returns an empty slice:
 ```go
 empty := []int{}
 result := array.Filter(empty, func(n int) bool {
@@ -1034,15 +1213,32 @@ result := array.Filter(empty, func(n int) bool {
 // Result: []
 ```
 
-#### No Matches
-If no elements match the predicate, an empty slice is returned:
+**Includes/IncludesIndexed:** Returns `false`:
+```go
+empty := []int{}
+result := array.Includes(empty, func(n int) bool {
+    return n > 0
+})
+// Result: false
+```
 
+#### No Matches
+**Filter/FilterIndexed:** Returns an empty slice:
 ```go
 numbers := []int{1, 3, 5, 7, 9}
 evens := array.Filter(numbers, func(n int) bool {
     return n%2 == 0
 })
 // Result: []
+```
+
+**Includes/IncludesIndexed:** Returns `false`:
+```go
+numbers := []int{1, 3, 5, 7, 9}
+hasEven := array.Includes(numbers, func(n int) bool {
+    return n%2 == 0
+})
+// Result: false
 ```
 
 ### Common Use Cases
@@ -1140,12 +1336,108 @@ names := array.Map(expensive, func(p Product) string {
 // Result: ["Laptop", "Keyboard"]
 ```
 
+#### Validation and Existence Checks
+```go
+type User struct {
+    ID       int
+    Name     string
+    IsActive bool
+    Role     string
+}
+
+users := []User{
+    {ID: 1, Name: "Alice", IsActive: true, Role: "admin"},
+    {ID: 2, Name: "Bob", IsActive: false, Role: "user"},
+    {ID: 3, Name: "Charlie", IsActive: true, Role: "user"},
+}
+
+// Check if there's at least one admin
+hasAdmin := array.Includes(users, func(u User) bool {
+    return u.Role == "admin"
+})
+// Result: true
+
+// Check if there's at least one inactive user
+hasInactive := array.Includes(users, func(u User) bool {
+    return !u.IsActive
+})
+// Result: true
+
+// Check if any user has a specific ID
+userExists := array.Includes(users, func(u User) bool {
+    return u.ID == 2
+})
+// Result: true
+```
+
+#### Conditional Logic Based on Array Contents
+```go
+type Order struct {
+    ID       int
+    Status   string
+    Total    float64
+    Priority bool
+}
+
+orders := []Order{
+    {ID: 1, Status: "pending", Total: 100.00, Priority: false},
+    {ID: 2, Status: "shipped", Total: 250.00, Priority: true},
+    {ID: 3, Status: "pending", Total: 75.00, Priority: false},
+}
+
+// Check if any order needs urgent processing
+needsUrgentProcessing := array.Includes(orders, func(o Order) bool {
+    return o.Status == "pending" && o.Priority
+})
+// Result: false
+
+// Check if any order is high value
+hasHighValueOrder := array.Includes(orders, func(o Order) bool {
+    return o.Total > 200
+})
+// Result: true
+
+// Use with conditional logic
+if array.Includes(orders, func(o Order) bool { return o.Status == "pending" }) {
+    fmt.Println("There are pending orders to process")
+}
+```
+
+#### Permission and Access Control
+```go
+type Permission struct {
+    Resource string
+    Action   string
+    Granted  bool
+}
+
+permissions := []Permission{
+    {Resource: "users", Action: "read", Granted: true},
+    {Resource: "users", Action: "write", Granted: false},
+    {Resource: "posts", Action: "read", Granted: true},
+    {Resource: "posts", Action: "delete", Granted: true},
+}
+
+// Check if user can write to users resource
+canWriteUsers := array.Includes(permissions, func(p Permission) bool {
+    return p.Resource == "users" && p.Action == "write" && p.Granted
+})
+// Result: false
+
+// Check if user has any delete permissions
+canDelete := array.Includes(permissions, func(p Permission) bool {
+    return p.Action == "delete" && p.Granted
+})
+// Result: true
+```
+
 ### Performance Notes
 
 - **Pre-allocated Slices**: Map functions pre-allocate the exact size needed; Filter functions pre-allocate with capacity for better performance
-- **Immutable**: Original slices are never modified; new slices are always returned
+- **Immutable**: Original slices are never modified; new slices are always returned (Filter/Map only)
 - **Type Flexibility**: Map supports transforming between different types (e.g., `[]int` to `[]string`)
 - **Efficient Memory Usage**: Minimal allocations and efficient memory reuse
+- **Early Exit Optimization**: Includes/IncludesIndexed stop at the first match, making them highly efficient for existence checks
 
 ### Running Tests
 
