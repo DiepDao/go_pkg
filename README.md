@@ -12,6 +12,10 @@ A comprehensive validation package for HTTP request validation and struct valida
 
 A utility package for setting default values in Go structs using struct tags and the mold library.
 
+### array
+
+A generic utility package for array/slice operations with type-safe filtering functions, similar to JavaScript's Array methods.
+
 ## Installation
 
 ```bash
@@ -332,8 +336,85 @@ err = validate.ValidateStructArrayRules(users)
 
 ### Running Tests
 
+#### Run All Package Tests (Detailed)
+
+Use the comprehensive test runner for detailed failure analysis:
+
 ```bash
+./test-all.sh
+```
+
+**Features:**
+- 🔍 Auto-discovers all packages with tests
+- 📊 Shows detailed test results per package
+- ❌ Highlights failed tests with:
+  - Function name that failed
+  - File and line number
+  - Failure reason/error message
+- 📈 Provides summary statistics
+- 🎨 Color-coded output for easy reading
+
+**Example output for failures:**
+```
+❌ Test: TestValidateRequestSchema
+   Location: sanitize_test.go:287
+   Reason:
+     Expected SchemaError type, got validate.SchemaError
+```
+
+#### Run All Package Tests (Quick)
+
+For a quick test run without detailed analysis:
+
+```bash
+./test-quick.sh
+```
+
+#### Run Individual Package Tests
+
+```bash
+# Test specific package
 go test -v ./validate
+go test -v ./defaults
+go test -v ./array
+
+# Run with benchmarks
+go test -v -bench=. ./array
+```
+
+#### Test Coverage Report
+
+Generate detailed coverage reports for all packages:
+
+```bash
+# Generate coverage report
+./test-coverage.sh
+
+# Generate coverage report with HTML output
+./test-coverage.sh --html
+```
+
+**Features:**
+- 📊 Coverage percentage for each package
+- 🎨 Color-coded results (green ≥80%, yellow 60-79%, red <60%)
+- 📁 Saves coverage files in `coverage/` directory
+- 🌐 Optional HTML report for detailed visualization
+
+#### Watch Mode (Auto-run tests on file changes)
+
+Automatically run tests when Go files change:
+
+```bash
+./test-watch.sh
+```
+
+**Note:** Requires `inotify-tools` package:
+```bash
+# Install on Ubuntu/Debian
+sudo apt-get install inotify-tools
+
+# Install on macOS
+brew install fswatch
 ```
 
 ### Publishing New Versions
@@ -567,4 +648,511 @@ type UserPreferences struct {
 
 ```bash
 go test -v ./defaults
+```
+
+## array Package
+
+The `array` package provides generic, type-safe utility functions for slice operations in Go, inspired by JavaScript's Array methods. All functions work with any type using Go generics.
+
+### Features
+
+- **Generic Type Support**: Works with any type (structs, strings, ints, floats, custom types, etc.)
+- **Type Safety**: Full compile-time type checking with Go generics
+- **Immutable Operations**: Original slices are never modified
+- **JavaScript-like API**: Familiar filter functions similar to Array.filter()
+- **Performance**: Optimized implementations with pre-allocated capacity
+- **Zero Dependencies**: Pure Go implementation
+
+### Quick Start
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/DiepDao/go_pkg/array"
+)
+
+func main() {
+    numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    
+    // Filter even numbers
+    evens := array.Filter(numbers, func(n int) bool {
+        return n%2 == 0
+    })
+    fmt.Println(evens) // Output: [2 4 6 8 10]
+    
+    // Map: double each number
+    doubled := array.Map(numbers, func(n int) int {
+        return n * 2
+    })
+    fmt.Println(doubled) // Output: [2 4 6 8 10 12 14 16 18 20]
+    
+    // Chain: filter evens, then double them
+    result := array.Map(evens, func(n int) int {
+        return n * 2
+    })
+    fmt.Println(result) // Output: [4 8 12 16 20]
+}
+```
+
+### Functions
+
+#### Filter
+
+`Filter[T any](in []T, predicate func(T) bool) []T`
+
+Returns a new slice containing only elements for which the predicate returns true. Similar to JavaScript's `Array.filter()`.
+
+**Parameters:**
+- `in`: Input slice of any type
+- `predicate`: Function that tests each element (returns true to keep, false to filter out)
+
+**Returns:** New filtered slice
+
+**Example - Filter Integers:**
+```go
+numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+
+// Get even numbers
+evens := array.Filter(numbers, func(n int) bool {
+    return n%2 == 0
+})
+// Result: [2, 4, 6, 8, 10]
+
+// Get numbers greater than 5
+large := array.Filter(numbers, func(n int) bool {
+    return n > 5
+})
+// Result: [6, 7, 8, 9, 10]
+```
+
+**Example - Filter Strings:**
+```go
+words := []string{"apple", "banana", "apricot", "cherry", "avocado"}
+
+// Get words starting with 'a'
+aWords := array.Filter(words, func(s string) bool {
+    return len(s) > 0 && s[0] == 'a'
+})
+// Result: ["apple", "apricot", "avocado"]
+
+// Get words longer than 6 characters
+longWords := array.Filter(words, func(s string) bool {
+    return len(s) > 6
+})
+// Result: ["apricot", "avocado"]
+```
+
+**Example - Filter Structs:**
+```go
+type Person struct {
+    Name string
+    Age  int
+}
+
+people := []Person{
+    {Name: "Alice", Age: 25},
+    {Name: "Bob", Age: 17},
+    {Name: "Charlie", Age: 30},
+    {Name: "Diana", Age: 16},
+}
+
+// Filter adults (age >= 18)
+adults := array.Filter(people, func(p Person) bool {
+    return p.Age >= 18
+})
+// Result: [{Alice 25}, {Charlie 30}]
+```
+
+**Example - Filter with Type Any (Unknown Struct Types):**
+```go
+// When you have a slice of any and don't know the struct type
+mixed := []any{1, "hello", 2.5, "world", 42, true, "test"}
+
+// Filter only strings using type assertion
+strings := array.Filter(mixed, func(v any) bool {
+    _, ok := v.(string)
+    return ok
+})
+// Result: ["hello", "world", "test"]
+
+// Filter only integers
+integers := array.Filter(mixed, func(v any) bool {
+    _, ok := v.(int)
+    return ok
+})
+// Result: [1, 42]
+```
+
+#### FilterIndexed
+
+`FilterIndexed[T any](in []T, predicate func(v T, index int, arr []T) bool) []T`
+
+Like `Filter`, but the predicate receives additional parameters: the element's index and the original array. This matches JavaScript's `Array.filter((item, index, array) => boolean)` signature.
+
+**Parameters:**
+- `in`: Input slice of any type
+- `predicate`: Function that receives (value, index, original array) and returns boolean
+
+**Returns:** New filtered slice
+
+**Example - Filter by Index:**
+```go
+numbers := []int{10, 20, 30, 40, 50}
+
+// Get elements at even indices (0, 2, 4)
+evenIndexElements := array.FilterIndexed(numbers, func(v int, index int, arr []int) bool {
+    return index%2 == 0
+})
+// Result: [10, 30, 50]
+```
+
+**Example - Filter Using Original Array:**
+```go
+numbers := []int{5, 10, 15, 20, 25}
+
+// Get elements greater than the first element
+result := array.FilterIndexed(numbers, func(v int, index int, arr []int) bool {
+    return v > arr[0]
+})
+// Result: [10, 15, 20, 25]
+
+// Get elements less than the average
+sum := 0
+for _, n := range numbers {
+    sum += n
+}
+avg := sum / len(numbers)
+
+belowAvg := array.FilterIndexed(numbers, func(v int, index int, arr []int) bool {
+    return v < avg
+})
+// Result: [5, 10]
+```
+
+**Example - Complex Filtering Logic:**
+```go
+type Product struct {
+    ID    int
+    Name  string
+    Price float64
+}
+
+products := []Product{
+    {ID: 1, Name: "Laptop", Price: 999.99},
+    {ID: 2, Name: "Mouse", Price: 25.50},
+    {ID: 3, Name: "Keyboard", Price: 75.00},
+    {ID: 4, Name: "Monitor", Price: 299.99},
+}
+
+// Filter: price > $50 AND at odd index positions
+result := array.FilterIndexed(products, func(p Product, index int, arr []Product) bool {
+    return p.Price > 50 && index%2 == 1
+})
+// Result: [{Monitor 299.99}] (only index 3 matches both conditions)
+```
+
+#### Map
+
+`Map[T any, R any](in []T, mapper func(T) R) []R`
+
+Transforms each element in the input slice using the provided mapper function and returns a new slice with the transformed elements. Similar to JavaScript's `Array.map()`. The input and output types can be different.
+
+**Parameters:**
+- `in`: Input slice of any type
+- `mapper`: Function that transforms each element (required, panics if nil)
+
+**Returns:** New slice with transformed elements
+
+**Example - Transform Same Type:**
+```go
+numbers := []int{1, 2, 3, 4, 5}
+
+// Double each number
+doubled := array.Map(numbers, func(n int) int {
+    return n * 2
+})
+// Result: [2, 4, 6, 8, 10]
+
+// Square each number
+squared := array.Map(numbers, func(n int) int {
+    return n * n
+})
+// Result: [1, 4, 9, 16, 25]
+```
+
+**Example - Type Conversion (Int to String):**
+```go
+numbers := []int{1, 2, 3, 4, 5}
+
+// Convert to strings
+strings := array.Map(numbers, func(n int) string {
+    return fmt.Sprintf("Number: %d", n)
+})
+// Result: ["Number: 1", "Number: 2", "Number: 3", "Number: 4", "Number: 5"]
+```
+
+**Example - Type Conversion (String to Int):**
+```go
+words := []string{"hello", "world", "go", "test"}
+
+// Get length of each string
+lengths := array.Map(words, func(s string) int {
+    return len(s)
+})
+// Result: [5, 5, 2, 4]
+```
+
+**Example - Extract Struct Field:**
+```go
+type Person struct {
+    Name string
+    Age  int
+}
+
+people := []Person{
+    {Name: "Alice", Age: 25},
+    {Name: "Bob", Age: 30},
+    {Name: "Charlie", Age: 35},
+}
+
+// Extract just the names
+names := array.Map(people, func(p Person) string {
+    return p.Name
+})
+// Result: ["Alice", "Bob", "Charlie"]
+
+// Extract just the ages
+ages := array.Map(people, func(p Person) int {
+    return p.Age
+})
+// Result: [25, 30, 35]
+```
+
+**Example - Transform Struct to Different Struct:**
+```go
+type User struct {
+    ID   int
+    Name string
+}
+
+type UserDTO struct {
+    UserID   int
+    FullName string
+}
+
+users := []User{
+    {ID: 1, Name: "Alice"},
+    {ID: 2, Name: "Bob"},
+}
+
+// Transform to DTOs
+dtos := array.Map(users, func(u User) UserDTO {
+    return UserDTO{
+        UserID:   u.ID,
+        FullName: u.Name,
+    }
+})
+// Result: [{UserID: 1, FullName: "Alice"}, {UserID: 2, FullName: "Bob"}]
+```
+
+#### MapIndexed
+
+`MapIndexed[T any, R any](in []T, mapper func(v T, index int, arr []T) R) []R`
+
+Like `Map`, but the mapper receives additional parameters: the element's index and the original array. This matches JavaScript's `Array.map((item, index, array) => newValue)` signature.
+
+**Parameters:**
+- `in`: Input slice of any type
+- `mapper`: Function that receives (value, index, original array) and returns transformed value
+
+**Returns:** New slice with transformed elements
+
+**Example - Use Index in Transformation:**
+```go
+numbers := []int{10, 20, 30, 40, 50}
+
+// Multiply each number by its index
+result := array.MapIndexed(numbers, func(v int, index int, arr []int) int {
+    return v * index
+})
+// Result: [0, 20, 60, 120, 200]
+```
+
+**Example - Format with Index:**
+```go
+words := []string{"apple", "banana", "cherry"}
+
+// Create numbered list
+numbered := array.MapIndexed(words, func(v string, index int, arr []string) string {
+    return fmt.Sprintf("%d: %s", index+1, v)
+})
+// Result: ["1: apple", "2: banana", "3: cherry"]
+```
+
+**Example - Use Original Array in Transformation:**
+```go
+numbers := []int{5, 10, 15, 20, 25}
+
+// Calculate difference from first element
+differences := array.MapIndexed(numbers, func(v int, index int, arr []int) int {
+    return v - arr[0]
+})
+// Result: [0, 5, 10, 15, 20]
+
+// Calculate percentage of total
+sum := 0
+for _, n := range numbers {
+    sum += n
+}
+percentages := array.MapIndexed(numbers, func(v int, index int, arr []int) float64 {
+    return float64(v) / float64(sum) * 100
+})
+// Result: [6.67, 13.33, 20.0, 26.67, 33.33] (approximately)
+```
+
+### Special Cases
+
+#### Nil Predicate
+If you pass `nil` as the predicate, both `Filter` and `FilterIndexed` return a shallow copy of the input slice:
+
+```go
+numbers := []int{1, 2, 3, 4, 5}
+copy := array.Filter(numbers, nil)
+// Result: [1, 2, 3, 4, 5] (new slice, same values)
+```
+
+#### Empty Slice
+Filtering an empty slice returns an empty slice:
+
+```go
+empty := []int{}
+result := array.Filter(empty, func(n int) bool {
+    return n > 0
+})
+// Result: []
+```
+
+#### No Matches
+If no elements match the predicate, an empty slice is returned:
+
+```go
+numbers := []int{1, 3, 5, 7, 9}
+evens := array.Filter(numbers, func(n int) bool {
+    return n%2 == 0
+})
+// Result: []
+```
+
+### Common Use Cases
+
+#### API Response Filtering
+```go
+type User struct {
+    ID       int
+    Name     string
+    IsActive bool
+    Role     string
+}
+
+users := []User{
+    {ID: 1, Name: "Alice", IsActive: true, Role: "admin"},
+    {ID: 2, Name: "Bob", IsActive: false, Role: "user"},
+    {ID: 3, Name: "Charlie", IsActive: true, Role: "user"},
+}
+
+// Get only active users
+activeUsers := array.Filter(users, func(u User) bool {
+    return u.IsActive
+})
+
+// Get only admins
+admins := array.Filter(users, func(u User) bool {
+    return u.Role == "admin"
+})
+```
+
+#### Data Validation and Cleanup
+```go
+type Record struct {
+    ID    int
+    Value string
+}
+
+records := []Record{
+    {ID: 1, Value: "valid"},
+    {ID: 2, Value: ""},
+    {ID: 3, Value: "also valid"},
+    {ID: 4, Value: ""},
+}
+
+// Remove records with empty values
+validRecords := array.Filter(records, func(r Record) bool {
+    return r.Value != ""
+})
+```
+
+#### Combining Filter and Map
+```go
+numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+
+// Chain: filter evens, then double them
+evens := array.Filter(numbers, func(n int) bool {
+    return n%2 == 0
+})
+doubled := array.Map(evens, func(n int) int {
+    return n * 2
+})
+// Result: [4, 8, 12, 16, 20]
+
+// Chain: filter > 5, then convert to strings
+large := array.Filter(numbers, func(n int) bool {
+    return n > 5
+})
+strings := array.Map(large, func(n int) string {
+    return fmt.Sprintf("Value: %d", n)
+})
+// Result: ["Value: 6", "Value: 7", "Value: 8", "Value: 9", "Value: 10"]
+```
+
+#### Data Transformation Pipelines
+```go
+type Product struct {
+    ID    int
+    Name  string
+    Price float64
+}
+
+products := []Product{
+    {ID: 1, Name: "Laptop", Price: 999.99},
+    {ID: 2, Name: "Mouse", Price: 25.50},
+    {ID: 3, Name: "Keyboard", Price: 75.00},
+}
+
+// Filter expensive products, then extract names
+expensive := array.Filter(products, func(p Product) bool {
+    return p.Price > 50
+})
+names := array.Map(expensive, func(p Product) string {
+    return p.Name
+})
+// Result: ["Laptop", "Keyboard"]
+```
+
+### Performance Notes
+
+- **Pre-allocated Slices**: Map functions pre-allocate the exact size needed; Filter functions pre-allocate with capacity for better performance
+- **Immutable**: Original slices are never modified; new slices are always returned
+- **Type Flexibility**: Map supports transforming between different types (e.g., `[]int` to `[]string`)
+- **Efficient Memory Usage**: Minimal allocations and efficient memory reuse
+
+### Running Tests
+
+```bash
+# Run all tests
+go test -v ./array
+
+# Run with benchmarks
+go test -v -bench=. ./array
 ```

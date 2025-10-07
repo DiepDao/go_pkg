@@ -76,12 +76,12 @@ func ValidateRequestSchema(req any, r *http.Request) error {
 	limitedReader := io.LimitReader(r.Body, MaxRequestBodySize)
 	bodyBytes, err := io.ReadAll(limitedReader)
 	if err != nil {
-		return SchemaError{Message: "failed to read request body: " + err.Error()}
+		return &SchemaError{Message: "failed to read request body: " + err.Error()}
 	}
 
 	// Check if we hit the size limit
 	if len(bodyBytes) == MaxRequestBodySize {
-		return SchemaError{Message: "request body too large"}
+		return &SchemaError{Message: "request body too large"}
 	}
 
 	// Restore the body for potential future reads
@@ -89,13 +89,13 @@ func ValidateRequestSchema(req any, r *http.Request) error {
 
 	var rawJSON map[string]any
 	if err := json.Unmarshal(bodyBytes, &rawJSON); err != nil {
-		return SchemaError{Message: "invalid JSON format: " + err.Error()}
+		return &SchemaError{Message: "invalid JSON format: " + err.Error()}
 	}
 
 	expectedFields := getFieldNames(req)
 	for key := range rawJSON {
 		if !expectedFields[key] {
-			return SchemaError{
+			return &SchemaError{
 				Field:   key,
 				Message: fmt.Sprintf("invalid field name or incorrect casing: %s", key),
 			}
@@ -103,7 +103,7 @@ func ValidateRequestSchema(req any, r *http.Request) error {
 	}
 
 	if err := json.Unmarshal(bodyBytes, req); err != nil {
-		return SchemaError{Message: "failed to unmarshal JSON: " + err.Error()}
+		return &SchemaError{Message: "failed to unmarshal JSON: " + err.Error()}
 	}
 
 	return nil
@@ -125,12 +125,12 @@ func ValidateRequestSchemaArray(slicePtr any, r *http.Request) error {
 	limitedReader := io.LimitReader(r.Body, MaxRequestBodySize)
 	bodyBytes, err := io.ReadAll(limitedReader)
 	if err != nil {
-		return SchemaError{Message: "failed to read request body: " + err.Error()}
+		return &SchemaError{Message: "failed to read request body: " + err.Error()}
 	}
 
 	// Check if we hit the size limit
 	if len(bodyBytes) == MaxRequestBodySize {
-		return SchemaError{Message: "request body too large"}
+		return &SchemaError{Message: "request body too large"}
 	}
 
 	// Restore the body for potential future reads
@@ -139,24 +139,24 @@ func ValidateRequestSchemaArray(slicePtr any, r *http.Request) error {
 	// Ensure slicePtr is a pointer to a slice/array of structs (or pointer-to-struct)
 	t := reflect.TypeOf(slicePtr)
 	if t == nil || t.Kind() != reflect.Ptr {
-		return SchemaError{Message: "target must be a pointer to a slice"}
+		return &SchemaError{Message: "target must be a pointer to a slice"}
 	}
 	t = t.Elem()
 	if t.Kind() != reflect.Slice && t.Kind() != reflect.Array {
-		return SchemaError{Message: "target must point to a slice or array"}
+		return &SchemaError{Message: "target must point to a slice or array"}
 	}
 	elem := t.Elem()
 	if elem.Kind() == reflect.Ptr {
 		elem = elem.Elem()
 	}
 	if elem.Kind() != reflect.Struct {
-		return SchemaError{Message: "element type must be a struct"}
+		return &SchemaError{Message: "element type must be a struct"}
 	}
 
 	// Unmarshal into []map[string]any to validate keys per element
 	var rawSlice []map[string]any
 	if err := json.Unmarshal(bodyBytes, &rawSlice); err != nil {
-		return SchemaError{Message: "invalid JSON format: " + err.Error()}
+		return &SchemaError{Message: "invalid JSON format: " + err.Error()}
 	}
 
 	// Build expected fields from the element struct type
@@ -164,7 +164,7 @@ func ValidateRequestSchemaArray(slicePtr any, r *http.Request) error {
 	for idx, obj := range rawSlice {
 		for key := range obj {
 			if !expectedFields[key] {
-				return SchemaError{
+				return &SchemaError{
 					Field:   key,
 					Message: fmt.Sprintf("invalid field name or incorrect casing at index %d: %s", idx, key),
 				}
@@ -174,7 +174,7 @@ func ValidateRequestSchemaArray(slicePtr any, r *http.Request) error {
 
 	// Finally unmarshal into the provided slice pointer
 	if err := json.Unmarshal(bodyBytes, slicePtr); err != nil {
-		return SchemaError{Message: "failed to unmarshal JSON: " + err.Error()}
+		return &SchemaError{Message: "failed to unmarshal JSON: " + err.Error()}
 	}
 
 	return nil
@@ -189,7 +189,7 @@ func ValidateStructArrayRules(slice any) error {
 		v = v.Elem()
 	}
 	if !v.IsValid() || (v.Kind() != reflect.Slice && v.Kind() != reflect.Array) {
-		return ValidationError{Message: "input must be a slice or array"}
+		return &ValidationError{Message: "input must be a slice or array"}
 	}
 
 	var messages []string
@@ -201,7 +201,7 @@ func ValidateStructArrayRules(slice any) error {
 		}
 	}
 	if len(messages) > 0 {
-		return ValidationError{Message: strings.Join(messages, "; ")}
+		return &ValidationError{Message: strings.Join(messages, "; ")}
 	}
 	return nil
 }
@@ -230,12 +230,12 @@ func parseValidationError(err error) error {
 				errorMessages = append(errorMessages, fmt.Sprintf("%s failed validation: %s", fieldName, fieldErr.Tag()))
 			}
 		}
-		return ValidationError{Message: strings.Join(errorMessages, ", ")}
+		return &ValidationError{Message: strings.Join(errorMessages, ", ")}
 	}
 
 	var unmarshalTypeError *json.UnmarshalTypeError
 	if errors.As(err, &unmarshalTypeError) {
-		return ValidationError{
+		return &ValidationError{
 			Field:   unmarshalTypeError.Field,
 			Message: fmt.Sprintf("%s should be a %s", unmarshalTypeError.Field, unmarshalTypeError.Type.String()),
 		}
